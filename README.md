@@ -63,8 +63,8 @@ npm run dev
 | --- | --- | --- |
 | API key | Your Gemini key (stored encrypted) | — |
 | Model | Gemini text model | `gemini-3.1-flash-lite` |
-| OCR languages | Tesseract langs, e.g. `eng`, `eng+chi_tra` | `eng+chi_tra` |
-| Explanation language | Language the explanation is written in | `Traditional Chinese` |
+| OCR languages | Tesseract langs (default follows OS locale) | e.g. `eng+chi_tra` |
+| Interface language | UI **and** explanation language | Auto (follows OS) |
 | Monitor interval | Re-capture interval in ms | `1500` |
 
 ## Cost (transparent)

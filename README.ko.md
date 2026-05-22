@@ -63,8 +63,8 @@ npm run dev
 | --- | --- | --- |
 | API 키 | 본인의 Gemini 키(암호화 저장) | — |
 | 모델 | Gemini 텍스트 모델 | `gemini-3.1-flash-lite` |
-| OCR 언어 | Tesseract 언어, 예: `eng`, `eng+chi_tra` | `eng+chi_tra` |
-| 설명 언어 | 설명을 작성할 언어 | `Traditional Chinese` |
+| OCR 언어 | Tesseract 언어(기본값은 OS 로캘 따름) | 예: `eng+chi_tra` |
+| 인터페이스 언어 | UI **및 응답** 언어 | 자동(시스템 따름) |
 | 모니터 간격 | 재캡처 간격(밀리초) | `1500` |
 
 ## 비용(투명 공개)

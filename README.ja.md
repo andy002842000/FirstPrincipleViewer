@@ -63,8 +63,8 @@ npm run dev
 | --- | --- | --- |
 | API キー | あなたの Gemini キー(暗号化保存) | — |
 | モデル | Gemini テキストモデル | `gemini-3.1-flash-lite` |
-| OCR 言語 | Tesseract の言語、例 `eng`、`eng+chi_tra` | `eng+chi_tra` |
-| 解説言語 | 解説を書く言語 | `Traditional Chinese` |
+| OCR 言語 | Tesseract の言語(既定はシステム言語に従う) | 例 `eng+chi_tra` |
+| 表示言語 | UI **と解説**の言語 | 自動(システムに従う) |
 | モニター間隔 | 再取得の間隔(ミリ秒) | `1500` |
 
 ## コスト(透明性)

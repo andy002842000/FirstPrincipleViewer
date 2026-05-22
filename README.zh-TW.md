@@ -63,8 +63,8 @@ npm run dev
 | --- | --- | --- |
 | API 金鑰 | 你的 Gemini 金鑰(加密保存) | — |
 | 模型 | Gemini 文字模型 | `gemini-3.1-flash-lite` |
-| OCR 語言 | Tesseract 語言,如 `eng`、`eng+chi_tra` | `eng+chi_tra` |
-| 解說語言 | 解說使用的語言 | `Traditional Chinese` |
+| OCR 語言 | Tesseract 語言(預設依系統語言) | 如 `eng+chi_tra` |
+| 介面語言 | 介面**與回應**語言 | 自動(跟隨系統) |
 | 監看間隔 | 重新擷取的間隔(毫秒) | `1500` |
 
 ## 成本(公開透明)
