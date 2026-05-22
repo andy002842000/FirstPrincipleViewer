@@ -1,7 +1,10 @@
 import type { Rect } from '../../shared/ipc'
+import { createT, detectLocale } from './i18n'
 
 const selection = document.getElementById('selection') as HTMLDivElement
 const sizeLabel = document.getElementById('size') as HTMLSpanElement
+const hint = document.getElementById('hint')
+if (hint) hint.textContent = createT(detectLocale())('overlay.hint')
 
 let startX = 0
 let startY = 0

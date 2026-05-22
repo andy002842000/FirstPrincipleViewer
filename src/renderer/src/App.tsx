@@ -1,29 +1,34 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import type { AppConfig, CaptureSource, Rect, UsageInfo } from '../../shared/ipc'
 import { captureRegionToDataUrl, disposeCapture } from './capture'
+import {
+  type Locale,
+  LOCALES,
+  detectLocale,
+  getLocalePreference,
+  setLocalePreference,
+  matchLocale,
+  localeToLangName,
+  createT,
+  type TFunc
+} from './i18n'
 
 type Status = 'idle' | 'capturing' | 'ocr' | 'thinking' | 'streaming' | 'error'
-
-const STATUS_LABEL: Record<Status, string> = {
-  idle: '待命',
-  capturing: '擷取畫面中…',
-  ocr: '辨識文字中…',
-  thinking: '送往 Gemini…',
-  streaming: '解說中…',
-  error: '發生錯誤'
-}
 
 function fmtTokens(n: number): string {
   return n.toLocaleString('en-US')
 }
 
-function fmtCost(usd: number | null): string {
-  if (usd === null) return '定價未知'
+function fmtCost(usd: number): string {
   if (usd === 0) return '$0'
   if (usd < 0.01) return `$${usd.toFixed(5)}`
   if (usd < 1) return `$${usd.toFixed(4)}`
   return `$${usd.toFixed(2)}`
+}
+
+function costText(usd: number | null, t: TFunc): string {
+  return usd === null ? t('cost.unknown') : fmtCost(usd)
 }
 
 export default function App() {
@@ -36,21 +41,26 @@ export default function App() {
   const [error, setError] = useState('')
   const [monitoring, setMonitoring] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [locale, setLocaleState] = useState<Locale>(() => detectLocale())
   const [lastUsage, setLastUsage] = useState<UsageInfo | null>(null)
   const [sessionInput, setSessionInput] = useState(0)
   const [sessionOutput, setSessionOutput] = useState(0)
   const [sessionCost, setSessionCost] = useState(0)
   const [sessionCostKnown, setSessionCostKnown] = useState(true)
 
+  const t = useMemo(() => createT(locale), [locale])
+
   const rectRef = useRef<Rect | null>(null)
   const sourceRef = useRef<CaptureSource | null>(null)
   const configRef = useRef<AppConfig | null>(null)
   const busyRef = useRef(false)
   const intervalRef = useRef<number | null>(null)
+  const localeRef = useRef(locale)
 
   rectRef.current = rect
   sourceRef.current = source
   configRef.current = config
+  localeRef.current = locale
 
   const runCycle = useCallback(async () => {
     const r = rectRef.current
@@ -64,7 +74,10 @@ export default function App() {
       setStatus('capturing')
       const image = await captureRegionToDataUrl(r, src)
       setStatus('ocr')
-      const res = await window.api.analyze({ image })
+      const res = await window.api.analyze({
+        image,
+        explainLang: localeToLangName(localeRef.current)
+      })
       setOcrText(res.text)
       if (res.error) {
         // onExplainError listener already surfaced it
@@ -93,7 +106,7 @@ export default function App() {
       setExplanation('')
       setStatus('streaming')
     })
-    const offChunk = window.api.onExplainChunk((t) => setExplanation((prev) => prev + t))
+    const offChunk = window.api.onExplainChunk((tok) => setExplanation((prev) => prev + tok))
     const offDone = window.api.onExplainDone((usage) => {
       setStatus('idle')
       if (!usage) return
@@ -149,8 +162,12 @@ export default function App() {
   }, [monitoring, runCycle])
 
   const busy = status !== 'idle' && status !== 'error'
-  const macDenied =
-    config?.screenAccess === 'denied' || config?.screenAccess === 'restricted'
+  const macDenied = config?.screenAccess === 'denied' || config?.screenAccess === 'restricted'
+
+  const handleUiLangChange = (pref: Locale | 'auto'): void => {
+    setLocalePreference(pref)
+    setLocaleState(pref === 'auto' ? matchLocale(navigator.language) : pref)
+  }
 
   return (
     <div className="app">
@@ -159,12 +176,12 @@ export default function App() {
           <span className="logo">◎</span>
           <div>
             <h1>FirstPrincipleViewer</h1>
-            <p className="subtitle">框選螢幕 → 本地 OCR → Gemini 第一性原理解說</p>
+            <p className="subtitle">{t('app.subtitle')}</p>
           </div>
         </div>
         <div className="header-right">
-          <span className={`pill pill--${status}`}>{STATUS_LABEL[status]}</span>
-          <button className="icon-btn" title="設定" onClick={() => setShowSettings(true)}>
+          <span className={`pill pill--${status}`}>{t(`status.${status}`)}</span>
+          <button className="icon-btn" title={t('settings.title')} onClick={() => setShowSettings(true)}>
             ⚙
           </button>
         </div>
@@ -172,27 +189,25 @@ export default function App() {
 
       {config && !config.hasKey && (
         <div className="banner banner--warn">
-          尚未設定 Gemini 金鑰。{' '}
+          {t('banner.noKey')}{' '}
           <button className="link-btn" onClick={() => setShowSettings(true)}>
-            開啟設定
-          </button>{' '}
-          填入你自己的金鑰即可開始。
+            {t('action.openSettings')}
+          </button>
         </div>
       )}
       {macDenied && (
         <div className="banner banner--warn">
-          macOS 尚未授權螢幕錄製,無法擷取畫面。{' '}
+          {t('banner.mac')}{' '}
           <button className="link-btn" onClick={() => window.api.openScreenPrefs()}>
-            開啟系統設定
-          </button>{' '}
-          授權後請重新啟動 App。
+            {t('action.openScreenPrefs')}
+          </button>
         </div>
       )}
       {error && <div className="banner banner--error">{error}</div>}
 
       <div className="controls">
         <button className="btn btn--primary" onClick={() => window.api.startRegionSelect()}>
-          選取區域
+          {t('btn.selectRegion')}
           <kbd>Ctrl/⌘ + Shift + E</kbd>
         </button>
         <label className={`toggle ${rect ? '' : 'toggle--disabled'}`}>
@@ -202,15 +217,19 @@ export default function App() {
             disabled={!rect}
             onChange={(e) => setMonitoring(e.target.checked)}
           />
-          持續監看
-          {config && <span className="muted"> · 每 {config.intervalMs} ms</span>}
+          {t('toggle.monitor')}
+          {config && <span className="muted"> · {t('toggle.interval', { ms: config.intervalMs })}</span>}
         </label>
       </div>
 
       {rect && (
         <div className="region-info">
-          區域 {Math.round(rect.width)} × {Math.round(rect.height)} @ ({Math.round(rect.x)},{' '}
-          {Math.round(rect.y)})
+          {t('region.info', {
+            w: Math.round(rect.width),
+            h: Math.round(rect.height),
+            x: Math.round(rect.x),
+            y: Math.round(rect.y)
+          })}
         </div>
       )}
 
@@ -218,15 +237,13 @@ export default function App() {
         {explanation ? (
           <ReactMarkdown>{explanation}</ReactMarkdown>
         ) : (
-          <div className="placeholder">
-            按「選取區域」或熱鍵框出畫面上要解說的部分,解說會即時串流到這裡。
-          </div>
+          <div className="placeholder">{t('explanation.placeholder')}</div>
         )}
       </section>
 
       {ocrText && (
         <details className="ocr">
-          <summary>OCR 擷取到的文字</summary>
+          <summary>{t('ocr.summary')}</summary>
           <pre>{ocrText}</pre>
         </details>
       )}
@@ -234,30 +251,35 @@ export default function App() {
       {lastUsage && (
         <div className="usage">
           <span>
-            本次 <b>{fmtTokens(lastUsage.totalTokens)}</b> tokens(輸入 {fmtTokens(lastUsage.inputTokens)} ·
-            輸出 {fmtTokens(lastUsage.outputTokens)})· ≈ {fmtCost(lastUsage.costUsd)}
+            {t('usage.last', {
+              total: fmtTokens(lastUsage.totalTokens),
+              in: fmtTokens(lastUsage.inputTokens),
+              out: fmtTokens(lastUsage.outputTokens),
+              cost: costText(lastUsage.costUsd, t)
+            })}
           </span>
           <span className="muted">
-            本階段累計 {fmtTokens(sessionInput + sessionOutput)} tokens · ≈ {fmtCost(sessionCost)}
-            {!sessionCostKnown && '+'}
+            {t('usage.session', {
+              total: fmtTokens(sessionInput + sessionOutput),
+              cost: fmtCost(sessionCost) + (sessionCostKnown ? '' : '+')
+            })}
           </span>
         </div>
       )}
 
       <footer className="footer">
-        {config ? (
-          <>
-            模型 <code>{config.model}</code> · OCR <code>{config.ocrLangs}</code>
-          </>
-        ) : (
-          '載入設定中…'
-        )}
+        {config
+          ? t('footer.config', { model: config.model, langs: config.ocrLangs })
+          : t('footer.loading')}
         {busy && <span className="spinner" aria-hidden />}
       </footer>
 
       {showSettings && config && (
         <SettingsModal
           config={config}
+          t={t}
+          uiPref={getLocalePreference()}
+          onUiLangChange={handleUiLangChange}
           onClose={() => setShowSettings(false)}
           onSaved={(next) => setConfig(next)}
         />
@@ -268,17 +290,22 @@ export default function App() {
 
 function SettingsModal({
   config,
+  t,
+  uiPref,
+  onUiLangChange,
   onClose,
   onSaved
 }: {
   config: AppConfig
+  t: TFunc
+  uiPref: Locale | 'auto'
+  onUiLangChange: (pref: Locale | 'auto') => void
   onClose: () => void
   onSaved: (next: AppConfig) => void
 }) {
   const [keyInput, setKeyInput] = useState('')
   const [model, setModel] = useState(config.model)
   const [langs, setLangs] = useState(config.ocrLangs)
-  const [explainLang, setExplainLang] = useState(config.explainLang)
   const [intervalMs, setIntervalMs] = useState(String(config.intervalMs))
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -295,7 +322,6 @@ function SettingsModal({
         apiKey: keyInput.trim() !== '' ? keyInput.trim() : undefined,
         model,
         ocrLangs: langs,
-        explainLang,
         intervalMs: Number(intervalMs)
       })
       onSaved(next)
@@ -317,8 +343,8 @@ function SettingsModal({
       })
       setTest(
         res.ok
-          ? { state: 'ok', msg: '金鑰可用 ✓' }
-          : { state: 'fail', msg: res.error ?? '測試失敗' }
+          ? { state: 'ok', msg: t('settings.testOk') }
+          : { state: 'fail', msg: res.error ?? 'failed' }
       )
     } catch (e) {
       setTest({ state: 'fail', msg: e instanceof Error ? e.message : String(e) })
@@ -329,29 +355,31 @@ function SettingsModal({
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h2>設定</h2>
-          <button className="icon-btn" onClick={onClose} title="關閉">
+          <h2>{t('settings.title')}</h2>
+          <button className="icon-btn" onClick={onClose} title={t('settings.close')}>
             ✕
           </button>
         </div>
 
         <label className="field">
           <span>
-            Gemini API 金鑰
-            {config.hasKey && <em className="muted"> · 已設定,留空表示不變更</em>}
+            {t('settings.key.label')}
+            {config.hasKey && <em className="muted">{t('settings.key.saved')}</em>}
           </span>
           <input
             type="password"
             value={keyInput}
             autoComplete="off"
             spellCheck={false}
-            placeholder={config.hasKey ? '••••••••(已儲存)' : '貼上你的金鑰'}
+            placeholder={
+              config.hasKey ? t('settings.key.placeholderSaved') : t('settings.key.placeholderEmpty')
+            }
             onChange={(e) => setKeyInput(e.target.value)}
           />
         </label>
         <div className="field-row">
           <button className="btn" onClick={handleTest} disabled={test.state === 'testing'}>
-            {test.state === 'testing' ? '測試中…' : '測試金鑰'}
+            {test.state === 'testing' ? t('settings.testing') : t('settings.test')}
           </button>
           {test.state === 'ok' && <span className="ok-text">{test.msg}</span>}
           {test.state === 'fail' && <span className="err-text">{test.msg}</span>}
@@ -360,29 +388,32 @@ function SettingsModal({
             onClick={() => window.api.openExternal('https://aistudio.google.com/apikey')}
             style={{ marginLeft: 'auto', cursor: 'pointer' }}
           >
-            取得金鑰 ↗
+            {t('settings.getKey')}
           </a>
         </div>
-        {!config.encryptionAvailable && (
-          <div className="note">
-            ⚠ 此系統無法使用作業系統加密,金鑰將以明文存放(常見於沒有 keyring 的 Linux)。
-          </div>
-        )}
+        {!config.encryptionAvailable && <div className="note">{t('settings.encWarn')}</div>}
 
         <label className="field">
-          <span>模型</span>
+          <span>{t('settings.uiLang')}</span>
+          <select value={uiPref} onChange={(e) => onUiLangChange(e.target.value as Locale | 'auto')}>
+            <option value="auto">{t('settings.uiLang.auto')}</option>
+            {LOCALES.map((l) => (
+              <option key={l.code} value={l.code}>
+                {l.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          <span>{t('settings.model')}</span>
           <input value={model} onChange={(e) => setModel(e.target.value)} spellCheck={false} />
         </label>
         <label className="field">
-          <span>OCR 語言(如 eng、eng+chi_tra)</span>
+          <span>{t('settings.ocrLangs')}</span>
           <input value={langs} onChange={(e) => setLangs(e.target.value)} spellCheck={false} />
         </label>
         <label className="field">
-          <span>解說語言</span>
-          <input value={explainLang} onChange={(e) => setExplainLang(e.target.value)} />
-        </label>
-        <label className="field">
-          <span>持續監看間隔(毫秒)</span>
+          <span>{t('settings.interval')}</span>
           <input
             type="number"
             min={300}
@@ -393,12 +424,12 @@ function SettingsModal({
         </label>
 
         <div className="modal-foot">
-          {saved && <span className="ok-text">已儲存 ✓</span>}
+          {saved && <span className="ok-text">{t('settings.saved')}</span>}
           <button className="btn" onClick={onClose}>
-            關閉
+            {t('settings.close')}
           </button>
           <button className="btn btn--primary" onClick={handleSave} disabled={saving}>
-            {saving ? '儲存中…' : '儲存'}
+            {saving ? t('settings.saving') : t('settings.save')}
           </button>
         </div>
       </div>

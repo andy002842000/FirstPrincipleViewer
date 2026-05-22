@@ -16,11 +16,38 @@ interface SettingsFile extends StoredSettings {
   plainKey?: string
 }
 
-const DEFAULTS: StoredSettings = {
-  model: process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite',
-  ocrLangs: process.env.OCR_LANGS || 'eng+chi_tra',
-  explainLang: process.env.EXPLAIN_LANG || 'Traditional Chinese',
-  intervalMs: Number(process.env.MONITOR_INTERVAL_MS) || 1500
+function osLocale(): string {
+  try {
+    return app.getLocale().toLowerCase()
+  } catch {
+    return ''
+  }
+}
+
+function localeOcrLangs(): string {
+  const loc = osLocale()
+  if (loc.startsWith('zh')) return 'eng+chi_tra'
+  if (loc.startsWith('ja')) return 'eng+jpn'
+  if (loc.startsWith('ko')) return 'eng+kor'
+  return 'eng'
+}
+
+function localeExplainLang(): string {
+  const loc = osLocale()
+  if (loc.startsWith('zh')) return 'Traditional Chinese'
+  if (loc.startsWith('ja')) return 'Japanese'
+  if (loc.startsWith('ko')) return 'Korean'
+  return 'English'
+}
+
+// Defaults are computed lazily (after app is ready) so app.getLocale() is reliable.
+function defaults(): StoredSettings {
+  return {
+    model: process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite',
+    ocrLangs: process.env.OCR_LANGS || localeOcrLangs(),
+    explainLang: process.env.EXPLAIN_LANG || localeExplainLang(),
+    intervalMs: Number(process.env.MONITOR_INTERVAL_MS) || 1500
+  }
 }
 
 let cache: SettingsFile | null = null
@@ -34,13 +61,13 @@ function load(): SettingsFile {
   try {
     if (existsSync(filePath())) {
       const parsed = JSON.parse(readFileSync(filePath(), 'utf-8')) as Partial<SettingsFile>
-      cache = { ...DEFAULTS, ...parsed }
+      cache = { ...defaults(), ...parsed }
       return cache
     }
   } catch {
     // fall through to defaults
   }
-  cache = { ...DEFAULTS }
+  cache = { ...defaults() }
   return cache
 }
 
@@ -72,9 +99,10 @@ export function getSettings(): StoredSettings {
 
 export function updateSettings(patch: Partial<StoredSettings>): void {
   const s = load()
-  if (patch.model !== undefined) s.model = patch.model.trim() || DEFAULTS.model
-  if (patch.ocrLangs !== undefined) s.ocrLangs = patch.ocrLangs.trim() || DEFAULTS.ocrLangs
-  if (patch.explainLang !== undefined) s.explainLang = patch.explainLang.trim() || DEFAULTS.explainLang
+  const d = defaults()
+  if (patch.model !== undefined) s.model = patch.model.trim() || d.model
+  if (patch.ocrLangs !== undefined) s.ocrLangs = patch.ocrLangs.trim() || d.ocrLangs
+  if (patch.explainLang !== undefined) s.explainLang = patch.explainLang.trim() || d.explainLang
   if (patch.intervalMs !== undefined && Number.isFinite(patch.intervalMs)) {
     s.intervalMs = Math.max(300, Math.round(patch.intervalMs))
   }

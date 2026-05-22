@@ -25,6 +25,8 @@ export interface RegionSelection {
 export interface AnalyzePayload {
   /** PNG data URL of the cropped region. OCR + LLM run in the main process. */
   image: string
+  /** Human language the explanation should be written in (follows the UI locale). */
+  explainLang?: string
 }
 
 export interface AnalyzeResult {

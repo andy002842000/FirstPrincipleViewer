@@ -219,12 +219,16 @@ function computeUsage(u: RawUsage | undefined, model: string): UsageInfo {
   return { inputTokens, outputTokens, totalTokens: inputTokens + outputTokens, costUsd, model }
 }
 
-async function streamExplanation(sender: Electron.WebContents, text: string): Promise<void> {
+async function streamExplanation(
+  sender: Electron.WebContents,
+  text: string,
+  explainLang: string
+): Promise<void> {
   const key = getApiKey()
   if (!key) {
     sender.send(
       Channels.explainError,
-      '尚未設定 Gemini 金鑰。請在「設定」填入你的金鑰(免費申請:https://aistudio.google.com/apikey)。'
+      'No Gemini API key set. Open Settings and add your key (free at https://aistudio.google.com/apikey).'
     )
     return
   }
@@ -232,13 +236,14 @@ async function streamExplanation(sender: Electron.WebContents, text: string): Pr
     genai = new GoogleGenAI({ apiKey: key })
     genaiKey = key
   }
-  const { model, explainLang } = getSettings()
+  const settings = getSettings()
+  const lang = explainLang || settings.explainLang
   sender.send(Channels.explainStart)
   const stream = await genai.models.generateContentStream({
-    model,
+    model: settings.model,
     contents: buildPrompt(text),
     config: {
-      systemInstruction: systemInstruction(explainLang),
+      systemInstruction: systemInstruction(lang),
       temperature: 0.4
     }
   })
@@ -252,7 +257,7 @@ async function streamExplanation(sender: Electron.WebContents, text: string): Pr
       usage = chunk.usageMetadata
     }
   }
-  sender.send(Channels.explainDone, computeUsage(usage, model))
+  sender.send(Channels.explainDone, computeUsage(usage, settings.model))
 }
 
 function registerIpc(): void {
@@ -352,7 +357,7 @@ function registerIpc(): void {
       lastText = normalized
 
       try {
-        await streamExplanation(event.sender, text)
+        await streamExplanation(event.sender, text, payload.explainLang ?? '')
         return { ok: true, changed: true, text }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)

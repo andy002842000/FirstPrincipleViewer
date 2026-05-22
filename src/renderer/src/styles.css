@@ -318,7 +318,8 @@ kbd {
 .field > span {
   color: var(--muted);
 }
-.field input {
+.field input,
+.field select {
   background: var(--panel-2);
   border: 1px solid var(--border);
   border-radius: 7px;
@@ -326,7 +327,11 @@ kbd {
   padding: 8px 10px;
   font: 13px/1.4 ui-monospace, monospace;
 }
-.field input:focus {
+.field select {
+  font-family: system-ui, -apple-system, 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+}
+.field input:focus,
+.field select:focus {
   outline: none;
   border-color: var(--accent);
 }
