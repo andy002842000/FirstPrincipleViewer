@@ -1,0 +1,57 @@
+{
+  "name": "first-principle-viewer",
+  "version": "0.1.0",
+  "description": "Frame any region of your screen and get a real-time, first-principles explanation of the text inside it.",
+  "main": "./out/main/index.js",
+  "author": "andy002842000",
+  "license": "MIT",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
+    "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
+    "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "package": "electron-vite build && electron-builder",
+    "package:win": "electron-vite build && electron-builder --win",
+    "package:mac": "electron-vite build && electron-builder --mac",
+    "package:linux": "electron-vite build && electron-builder --linux"
+  },
+  "dependencies": {
+    "@google/genai": "^1.0.0",
+    "dotenv": "^16.4.7",
+    "react-markdown": "^9.0.1",
+    "tesseract.js": "^5.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^34.0.0",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^3.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7"
+  },
+  "build": {
+    "appId": "com.andy002842000.firstprincipleviewer",
+    "productName": "FirstPrincipleViewer",
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Development"
+    }
+  }
+}

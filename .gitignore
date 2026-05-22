@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Build output
+out/
+dist/
+dist-electron/
+*.local
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Claude Code local settings
+.claude/settings.local.json
