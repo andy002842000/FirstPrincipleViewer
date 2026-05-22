@@ -3,13 +3,18 @@
 **English** · [繁體中文](README.zh-TW.md) · [日本語](README.ja.md) · [한국어](README.ko.md)
 
 **Frame any region of your screen → local OCR → a real-time, first-principles explanation streamed from Gemini.**
-框選螢幕上任一區域 → 本地 OCR 抽出文字 → Gemini 即時串流「第一性原理」解說。
 
 A small cross-platform desktop tool (Windows / macOS / Linux). It is **BYOK** — Bring Your Own Key: you use your own Google Gemini API key, entered in‑app and stored encrypted on your machine.
 
 > 🔒 **Privacy & cost by design:** screenshots never leave your machine. Only the OCR'd *text* is sent to the LLM, and only a cheap text model is used — no expensive vision API.
 
 ---
+
+## Why this exists
+
+AI agents keep getting faster, and the volume of engineering information is exploding — faster than any human can read, let alone absorb. We increasingly can't keep up with everything in front of us.
+
+FirstPrincipleViewer is the shortcut: don't stop to think, just frame whatever region you want to understand. It reads the text and turns it, in real time, into a summary explained **from first principles** — so you grasp the *why*, not just skim the *what*.
 
 ## How it works
 
