@@ -60,6 +60,39 @@ npm run dev
 | Explanation language | Language the explanation is written in | `Traditional Chinese` |
 | Monitor interval | Re-capture interval in ms | `1500` |
 
+## Cost (transparent)
+
+The only step that ever costs money is the **Gemini text API call**. Capturing the screen, OCR (Tesseract.js) and change-detection all run **locally and free** — and **screenshots are never uploaded**, only the OCR'd text is.
+
+Each *frame → explain* call is billed as `input tokens + output tokens`:
+
+- **input** = system instruction (~120 tokens) + prompt wrapper (~30) + your captured text
+- **output** = the streamed explanation (usually the larger share)
+
+Default model **`gemini-3.1-flash-lite`** — pricing as of 2026-05, paid tier (always verify at <https://ai.google.dev/pricing>):
+
+- Input: **$0.25 / 1M tokens**
+- Output: **$1.50 / 1M tokens**
+- A **free tier** is available (rate-limited) — light personal use is often effectively $0.
+
+### Rough cost per capture
+
+| Region | Input tokens | Output tokens | Cost / capture |
+| --- | --- | --- | --- |
+| Small (a sentence / a label) | ~230 | ~400 | ~$0.0007 |
+| Medium (a paragraph / code) | ~600 | ~800 | ~$0.0014 |
+| Large (a full section) | ~1,650 | ~1,200 | ~$0.0022 |
+
+So roughly **$0.0007–$0.002 per capture** — about **500–1,500 captures per US$1**. (Token counts are estimates; CJK text tokenizes differently.)
+
+**Continuous monitor** mode only calls the API when the OCR'd text actually *changes* — watching a static region keeps doing local OCR but makes no new paid calls.
+
+### Lowering the cost
+
+- Pick a cheaper model in Settings, e.g. `gemini-2.5-flash-lite` ($0.10 in / $0.40 out per 1M).
+- Keep explanations short — output tokens dominate the bill.
+- Stay within the free tier for casual use.
+
 ## Build installers
 
 ```bash
