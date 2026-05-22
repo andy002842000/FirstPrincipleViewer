@@ -1,5 +1,7 @@
 # FirstPrincipleViewer
 
+**English** · [繁體中文](README.zh-TW.md) · [日本語](README.ja.md) · [한국어](README.ko.md)
+
 **Frame any region of your screen → local OCR → a real-time, first-principles explanation streamed from Gemini.**
 框選螢幕上任一區域 → 本地 OCR 抽出文字 → Gemini 即時串流「第一性原理」解說。
 

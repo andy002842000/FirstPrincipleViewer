@@ -1,0 +1,126 @@
+# FirstPrincipleViewer
+
+[English](README.md) · [繁體中文](README.zh-TW.md) · [日本語](README.ja.md) · **한국어**
+
+**화면의 임의 영역을 선택 → 로컬 OCR → Gemini가 "제1원리" 기반 설명을 실시간 스트리밍.**
+
+가벼운 크로스플랫폼 데스크톱 도구입니다(Windows / macOS / Linux). **BYOK(Bring Your Own Key)** 방식으로, 본인의 Google Gemini API 키를 앱에서 입력하면 사용자의 기기에 암호화되어 저장됩니다.
+
+> 🔒 **프라이버시와 비용을 우선한 설계:** 스크린샷은 절대 기기를 벗어나지 않습니다. LLM에는 OCR로 추출한 "텍스트"만 전송되며, 저렴한 텍스트 모델만 사용합니다 —— 비싼 비전 API는 사용하지 않습니다.
+
+---
+
+## 동작 방식
+
+```
+영역 선택  →  프레임 캡처  →  로컬 OCR(Tesseract)  →  텍스트  →  Gemini(텍스트 모델)  →  설명 스트리밍
+```
+
+"**연속 모니터**" 모드는 일정 간격으로 영역을 다시 캡처하고, 인식된 텍스트가 실제로 바뀐 경우에만 LLM을 다시 호출합니다.
+
+## 시작하기
+
+### 방법 A — 빌드 다운로드
+[Releases 페이지](https://github.com/andy002842000/FirstPrincipleViewer/releases)에서 사용 중인 OS용 최신 설치 파일을 받으세요.
+
+- **Windows:** `.exe`(NSIS 설치 프로그램)
+- **macOS:** `.dmg` —— 현재 **서명되지 않음**. 처음 실행할 때 **마우스 오른쪽 클릭 → 열기**, 또는 `xattr -dr com.apple.quarantine /Applications/FirstPrincipleViewer.app` 실행.
+- **Linux:** `.AppImage` —— `chmod +x` 후 실행.
+
+### 방법 B — 소스에서 실행
+
+```bash
+git clone https://github.com/andy002842000/FirstPrincipleViewer.git
+cd FirstPrincipleViewer
+npm install
+npm run dev
+```
+
+## 본인 키 사용(BYOK)
+
+1. <https://aistudio.google.com/apikey>에서 **무료** Gemini API 키를 발급받습니다.
+2. 앱 실행 → **⚙(설정)** 버튼 클릭 → 키 붙여넣기 → **테스트** → **저장**.
+3. 키는 OS 키 저장소(Windows DPAPI / macOS Keychain / Linux secret service)를 통해 암호화 저장되며, 다시 표시되지 않고 Google API 외의 어디에도 전송되지 않습니다.
+
+> 개발 시에는 로컬 `.env`에 `GEMINI_API_KEY`를 넣어도 됩니다(`.env.example` 참고). 앱에 저장된 키가 항상 우선합니다.
+
+## 사용법
+
+1. **Ctrl / ⌘ + Shift + E**를 누릅니다(또는 "영역 선택" 클릭).
+2. 설명을 원하는 텍스트를 어느 모니터에서든 드래그하여 박스로 감쌉니다.
+3. 인식된 텍스트와 스트리밍되는 제1원리 설명이 패널에 나타납니다.
+4. "연속 모니터"를 켜면 영역 내용이 바뀔 때마다 계속 갱신됩니다.
+
+## 설정
+
+| 설정 | 의미 | 기본값 |
+| --- | --- | --- |
+| API 키 | 본인의 Gemini 키(암호화 저장) | — |
+| 모델 | Gemini 텍스트 모델 | `gemini-3.1-flash-lite` |
+| OCR 언어 | Tesseract 언어, 예: `eng`, `eng+chi_tra` | `eng+chi_tra` |
+| 설명 언어 | 설명을 작성할 언어 | `Traditional Chinese` |
+| 모니터 간격 | 재캡처 간격(밀리초) | `1500` |
+
+## 비용(투명 공개)
+
+비용이 드는 유일한 단계는 **Gemini 텍스트 API 호출**입니다. 화면 캡처, OCR(Tesseract.js), 변경 감지는 모두 **로컬에서 무료로** 실행되며, **스크린샷은 절대 업로드되지 않습니다** —— OCR한 텍스트만 전송됩니다.
+
+각 "선택 → 설명" 호출은 `입력 토큰 + 출력 토큰`으로 과금됩니다:
+
+- **입력** = 시스템 지시(~120 토큰) + 프롬프트 래퍼(~30) + 캡처한 텍스트
+- **출력** = 스트리밍되는 설명(보통 이쪽이 더 큼)
+
+기본 모델 **`gemini-3.1-flash-lite`** —— 가격은 2026-05 기준 유료 티어(반드시 <https://ai.google.dev/pricing>에서 확인):
+
+- 입력: **$0.25 / 100만 토큰**
+- 출력: **$1.50 / 100만 토큰**
+- **무료 티어** 제공(요청 제한 있음) —— 가벼운 개인 사용은 사실상 $0인 경우가 많습니다.
+
+### 캡처 1회당 대략 비용
+
+| 영역 | 입력 토큰 | 출력 토큰 | 1회당 비용 |
+| --- | --- | --- | --- |
+| 작음(한 문장 / 라벨) | ~230 | ~400 | ~$0.0007 |
+| 중간(문단 / 코드) | ~600 | ~800 | ~$0.0014 |
+| 큼(섹션 전체) | ~1,650 | ~1,200 | ~$0.0022 |
+
+대략 **1회 $0.0007–$0.002** —— **US$1당 약 500–1,500회**입니다. (토큰 수는 추정치이며, CJK 텍스트는 토큰화가 다릅니다.)
+
+"**연속 모니터**" 모드는 OCR 텍스트가 실제로 **바뀔 때만** API를 호출합니다 —— 정적인 영역을 모니터링하는 동안에는 로컬 OCR만 계속할 뿐, 새로운 과금 호출은 발생하지 않습니다.
+
+### 비용 줄이기
+
+- 설정에서 더 저렴한 모델 선택, 예: `gemini-2.5-flash-lite`(100만당 입력 $0.10 / 출력 $0.40).
+- 설명을 짧게 유지 —— 출력 토큰이 비용의 대부분을 차지합니다.
+- 가벼운 사용은 무료 티어 범위 내에서.
+
+## 설치 파일 빌드
+
+```bash
+npm run package:win     # 또는 package:mac / package:linux
+```
+
+버전 태그를 푸시하면 CI가 세 플랫폼을 자동 빌드합니다(`.github/workflows` 참고).
+
+## 기술 스택
+
+Electron · TypeScript · React · Vite(electron-vite) · Tesseract.js(로컬 OCR) · @google/genai
+
+## 플랫폼 참고사항
+
+- **macOS:** **화면 기록** 권한이 필요합니다(시스템 설정 → 개인 정보 보호 및 보안 → 화면 기록). 앱이 안내합니다. 권한 부여 후 재시작하세요.
+- **Linux:** 사용 가능한 keyring / secret service가 없으면 키가 평문 저장으로 대체됩니다 —— 이 경우 설정 대화상자가 경고합니다. 화면 캡처는 X11에서 가장 안정적이며, Wayland에서는 PipeWire가 필요합니다.
+- **멀티 모니터:** 지원 —— 각 디스플레이에 자체 선택 오버레이가 표시됩니다. 한 번의 선택은 하나의 디스플레이 안에 있어야 합니다.
+
+## 기여
+
+이슈와 PR을 환영합니다. PR을 열기 전에:
+
+```bash
+npm run typecheck
+npm run build
+```
+
+## 라이선스
+
+[MIT](LICENSE) © andy002842000
