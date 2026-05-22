@@ -7,7 +7,8 @@ import {
   type AnalyzeResult,
   type AppConfig,
   type SettingsPayload,
-  type TestKeyResult
+  type TestKeyResult,
+  type UsageInfo
 } from '../shared/ipc'
 
 function sub(
@@ -44,7 +45,8 @@ const api = {
   onExplainStart: (cb: () => void): (() => void) => sub(Channels.explainStart, () => cb()),
   onExplainChunk: (cb: (text: string) => void): (() => void) =>
     sub(Channels.explainChunk, (_e, text: string) => cb(text)),
-  onExplainDone: (cb: () => void): (() => void) => sub(Channels.explainDone, () => cb()),
+  onExplainDone: (cb: (usage?: UsageInfo) => void): (() => void) =>
+    sub(Channels.explainDone, (_e, usage: UsageInfo | undefined) => cb(usage)),
   onExplainError: (cb: (message: string) => void): (() => void) =>
     sub(Channels.explainError, (_e, message: string) => cb(message))
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
-import type { AppConfig, CaptureSource, Rect } from '../../shared/ipc'
+import type { AppConfig, CaptureSource, Rect, UsageInfo } from '../../shared/ipc'
 import { captureRegionToDataUrl, disposeCapture } from './capture'
 
 type Status = 'idle' | 'capturing' | 'ocr' | 'thinking' | 'streaming' | 'error'
@@ -14,6 +14,18 @@ const STATUS_LABEL: Record<Status, string> = {
   error: '發生錯誤'
 }
 
+function fmtTokens(n: number): string {
+  return n.toLocaleString('en-US')
+}
+
+function fmtCost(usd: number | null): string {
+  if (usd === null) return '定價未知'
+  if (usd === 0) return '$0'
+  if (usd < 0.01) return `$${usd.toFixed(5)}`
+  if (usd < 1) return `$${usd.toFixed(4)}`
+  return `$${usd.toFixed(2)}`
+}
+
 export default function App() {
   const [config, setConfig] = useState<AppConfig | null>(null)
   const [source, setSource] = useState<CaptureSource | null>(null)
@@ -24,6 +36,11 @@ export default function App() {
   const [error, setError] = useState('')
   const [monitoring, setMonitoring] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [lastUsage, setLastUsage] = useState<UsageInfo | null>(null)
+  const [sessionInput, setSessionInput] = useState(0)
+  const [sessionOutput, setSessionOutput] = useState(0)
+  const [sessionCost, setSessionCost] = useState(0)
+  const [sessionCostKnown, setSessionCostKnown] = useState(true)
 
   const rectRef = useRef<Rect | null>(null)
   const sourceRef = useRef<CaptureSource | null>(null)
@@ -77,7 +94,16 @@ export default function App() {
       setStatus('streaming')
     })
     const offChunk = window.api.onExplainChunk((t) => setExplanation((prev) => prev + t))
-    const offDone = window.api.onExplainDone(() => setStatus('idle'))
+    const offDone = window.api.onExplainDone((usage) => {
+      setStatus('idle')
+      if (!usage) return
+      setLastUsage(usage)
+      setSessionInput((p) => p + usage.inputTokens)
+      setSessionOutput((p) => p + usage.outputTokens)
+      const cost = usage.costUsd
+      if (cost !== null) setSessionCost((p) => p + cost)
+      else setSessionCostKnown(false)
+    })
     const offError = window.api.onExplainError((m) => {
       setError(m)
       setStatus('error')
@@ -203,6 +229,19 @@ export default function App() {
           <summary>OCR 擷取到的文字</summary>
           <pre>{ocrText}</pre>
         </details>
+      )}
+
+      {lastUsage && (
+        <div className="usage">
+          <span>
+            本次 <b>{fmtTokens(lastUsage.totalTokens)}</b> tokens(輸入 {fmtTokens(lastUsage.inputTokens)} ·
+            輸出 {fmtTokens(lastUsage.outputTokens)})· ≈ {fmtCost(lastUsage.costUsd)}
+          </span>
+          <span className="muted">
+            本階段累計 {fmtTokens(sessionInput + sessionOutput)} tokens · ≈ {fmtCost(sessionCost)}
+            {!sessionCostKnown && '+'}
+          </span>
+        </div>
       )}
 
       <footer className="footer">

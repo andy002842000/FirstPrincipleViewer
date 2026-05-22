@@ -62,6 +62,15 @@ export interface TestKeyResult {
   error?: string
 }
 
+export interface UsageInfo {
+  inputTokens: number
+  outputTokens: number
+  totalTokens: number
+  /** Estimated USD cost; null when the model's pricing is unknown. */
+  costUsd: number | null
+  model: string
+}
+
 export const Channels = {
   regionStart: 'region:start',
   regionSelected: 'region:selected',

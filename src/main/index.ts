@@ -21,7 +21,8 @@ import {
   type AnalyzeResult,
   type AppConfig,
   type SettingsPayload,
-  type TestKeyResult
+  type TestKeyResult,
+  type UsageInfo
 } from '../shared/ipc'
 import {
   getApiKey,
@@ -185,6 +186,39 @@ async function runOcr(dataUrl: string): Promise<string> {
   return data.text ?? ''
 }
 
+// USD per 1M tokens, { in, out }. Estimates — verify at https://ai.google.dev/pricing
+const PRICING: Record<string, { in: number; out: number }> = {
+  'gemini-3.1-flash-lite': { in: 0.25, out: 1.5 },
+  'gemini-2.5-flash-lite': { in: 0.1, out: 0.4 },
+  'gemini-2.5-flash': { in: 0.3, out: 2.5 },
+  'gemini-2.0-flash-lite': { in: 0.075, out: 0.3 },
+  'gemini-2.0-flash': { in: 0.1, out: 0.4 }
+}
+
+function priceFor(model: string): { in: number; out: number } | null {
+  if (PRICING[model]) return PRICING[model]
+  const key = Object.keys(PRICING).find((k) => model.startsWith(k))
+  return key ? PRICING[key] : null
+}
+
+interface RawUsage {
+  promptTokenCount?: number
+  candidatesTokenCount?: number
+  totalTokenCount?: number
+  thoughtsTokenCount?: number
+}
+
+function computeUsage(u: RawUsage | undefined, model: string): UsageInfo {
+  const inputTokens = u?.promptTokenCount ?? 0
+  const total =
+    u?.totalTokenCount ??
+    inputTokens + (u?.candidatesTokenCount ?? 0) + (u?.thoughtsTokenCount ?? 0)
+  const outputTokens = Math.max(0, total - inputTokens)
+  const p = priceFor(model)
+  const costUsd = p ? (inputTokens * p.in + outputTokens * p.out) / 1_000_000 : null
+  return { inputTokens, outputTokens, totalTokens: inputTokens + outputTokens, costUsd, model }
+}
+
 async function streamExplanation(sender: Electron.WebContents, text: string): Promise<void> {
   const key = getApiKey()
   if (!key) {
@@ -208,13 +242,17 @@ async function streamExplanation(sender: Electron.WebContents, text: string): Pr
       temperature: 0.4
     }
   })
+  let usage: RawUsage | undefined
   for await (const chunk of stream) {
     const piece = chunk.text
     if (piece) {
       sender.send(Channels.explainChunk, piece)
     }
+    if (chunk.usageMetadata) {
+      usage = chunk.usageMetadata
+    }
   }
-  sender.send(Channels.explainDone)
+  sender.send(Channels.explainDone, computeUsage(usage, model))
 }
 
 function registerIpc(): void {
